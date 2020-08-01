@@ -59,7 +59,7 @@ def validate_coordenadas(**kwargs):
     response = list()
 
     arcpy.AddMessage(MSG_READ_XLS)
-    df = pd.read_excel(kwargs['xls'])
+    df = pd.read_excel(kwargs['xls'], converters={_CODIGOU: str})
 
     flayer = dict()
     arcpy.AddMessage(MSG_READ_FEATURES)
