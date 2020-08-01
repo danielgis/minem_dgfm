@@ -1,0 +1,7 @@
+MSG_ARCGIS_RESTART = 'Se recomienda reiniciar ArcMap para capturar los cambios de las librerias instaladas'
+MSG_NO_DATA = 'No se obtuvieron datos'
+MSG_READ_XLS = 'Leyendo datos de archivo *.xls ingresado'
+MSG_READ_FEATURES = 'Leyendo datos de los feature layers ingresados'
+MSG_EVALUATE_ROWS = 'Evaluacion de registros'
+MSG_EXPORT_TO_XLS = 'Exportando resultados en formato *.xls'
+MSG_FINISH_PROCESS = 'Proceso finalizado'
