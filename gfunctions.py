@@ -2,6 +2,8 @@ from settings import *
 from subprocess import call
 import arcpy
 import glob
+# import os
+# import sys
 
 
 # Install packages
@@ -91,3 +93,30 @@ def script_tool_decore(func):
             return response, state, message
 
     return decorator
+
+
+# def create_excel_from_list_dict(list_dict, out_xls, **kwargs):
+#     from itertools import chain
+#     from openpyxl import Workbook
+#     import string
+#
+#     abc = string.ascii_lowercase.upper()
+#     keys = map(lambda i: i.keys(), list_dict)
+#     columns = list(set(chain(*keys)))
+#
+#     wb = Workbook()
+#     ws = wb.active
+#
+#     head_number_ini = kwargs['ini'] if kwargs.get('ini') else 1
+#     body_number_ini = head_number_ini + 1
+#
+#     for i, k in enumerate(columns):
+#         cell = '{}{}'.format(abc[i], head_number_ini)
+#         ws[cell] = k.upper()
+#
+#     for i, r in enumerate(list_dict, body_number_ini):
+#         for m, k in enumerate(columns):
+#             cell = '{}{}'.format(abc[m], i)
+#             ws[cell] = r.get(k, '')
+#
+#     wb.save(out_xls)

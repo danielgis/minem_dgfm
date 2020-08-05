@@ -1,9 +1,11 @@
-from gfunctions import *
-import arcpy
 import pandas as pd
+from gfunctions import *
 import random
 from messages import *
-import uuid
+import os
+
+
+arcpy.env.overwriteOutput = True
 
 # Fields
 _ID = 'ID'
@@ -33,11 +35,12 @@ def validate_zona(zona):
         raise RuntimeError("El registro no presenta un zona geografica valida")
 
 
-def validate_position(row, x, y, flayer, wgs=True):
-    # res = int()
+def validate_position(row, x, y, flayer_dm, flayer_ar, wgs=True):
+    res = list()
     zona = row[_ZONA]
     codigou = row[_CODIGOU]
-    lyr = flayer[zona]
+    lyr_dm = flayer_dm[zona]
+    lyr_ar = flayer_ar[zona]
     if x and y:
         epsg = WGS84 + zona if wgs else PSAD56 + zona
         epsg_origin = arcpy.SpatialReference(epsg)
@@ -46,32 +49,62 @@ def validate_position(row, x, y, flayer, wgs=True):
         if not wgs:
             epsg_unique = arcpy.SpatialReference(WGS84 + zona)
             point = point.projectAs(epsg_unique)
-        arcpy.SelectLayerByLocation_management(lyr, 'INTERSECT', point, "#", "NEW_SELECTION")
-        rows = filter(lambda i: i[0] == codigou, arcpy.da.SearchCursor(lyr, [_CODIGOU]))
-        res = 1 if len(rows) else 0
+        res_dm = intersect_by_point(point, lyr_dm, 'dm', codigou=codigou)
+        res_ar = intersect_by_point(point, lyr_ar, 'ar')
+        res.append(res_dm)
+        res.append(res_ar)
     else:
-        res = 9  # 'El registro no presenta coordenadas validas'
+        res = [9] * 2  # El registro no presenta coordenadas validas
     return res
 
 
-# @script_tool_decore
+def intersect_by_point(point, feature_layer, case, **kwargs):
+    res = int()
+    arcpy.SelectLayerByLocation_management(feature_layer, 'INTERSECT', point, "#", "NEW_SELECTION")
+    if case == 'dm':
+        if kwargs.get(_CODIGOU):
+            rows = filter(lambda i: i[0] == kwargs[_CODIGOU], arcpy.da.SearchCursor(feature_layer, [_CODIGOU]))
+            res = 1 if len(rows) else 0
+        else:
+            res = 8  # El identificador del derecho minero es nulo
+    elif case == 'ar':
+        rows = int(arcpy.GetCount_management(feature_layer).__str__())
+        res = 0 if rows else 1
+    return res
+
+
+@script_tool_decore
 def validate_coordenadas(**kwargs):
     response = list()
 
     arcpy.AddMessage(MSG_READ_XLS)
     df = pd.read_excel(kwargs['xls'], converters={_CODIGOU: str})
 
-    flayer = dict()
+    # FeaturesLayers de derechos mineros
+    flayer_dm = dict()
     arcpy.AddMessage(MSG_READ_FEATURES)
-    flayer[17] = arcpy.MakeFeatureLayer_management(kwargs['shp_17'], 'feature_17')
-    flayer[18] = arcpy.MakeFeatureLayer_management(kwargs['shp_18'], 'feature_18')
-    flayer[19] = arcpy.MakeFeatureLayer_management(kwargs['shp_19'], 'feature_19')
+    flayer_dm[17] = arcpy.MakeFeatureLayer_management(kwargs['shp_dm_17'], 'feature_dm_17')
+    flayer_dm[18] = arcpy.MakeFeatureLayer_management(kwargs['shp_dm_18'], 'feature_dm_18')
+    flayer_dm[19] = arcpy.MakeFeatureLayer_management(kwargs['shp_dm_19'], 'feature_dm_19')
 
-    flayer_selected = random.choice(list(flayer.values()))
-    codigous = map(lambda i: i[0], arcpy.da.SearchCursor(flayer_selected, [_CODIGOU]))
+    arcpy.AddMessage('seleccionando layer aleatoriamente')
+    flayer_selected = random.choice(flayer_dm.keys())
+    arcpy.AddMessage('obteniendo codigous {}'.format(flayer_selected))
+    codigous = map(lambda re: re[0], arcpy.da.SearchCursor(flayer_dm[flayer_selected], ['CODIGOU']))
+
+    arcpy.AddMessage('layer de areas restringidas')
+    # FeaturesLayers de areas restringidas
+    flayer_ar = dict()
+    arcpy.AddMessage('repollo')
+    flayer_ar[17] = arcpy.MakeFeatureLayer_management(kwargs['shp_ar_17'], 'feature_ar_17').getOutput(0)
+    flayer_ar[18] = arcpy.MakeFeatureLayer_management(kwargs['shp_ar_18'], 'feature_ar_18').getOutput(0)
+    flayer_ar[19] = arcpy.MakeFeatureLayer_management(kwargs['shp_ar_19'], 'feature_ar_19').getOutput(0)
 
     arcpy.AddMessage(MSG_EVALUATE_ROWS)
     for i, r in df.iterrows():
+        # Habilitar para tets
+        # if i > 20:
+        #     break
         arcpy.AddMessage('{}. [{}] {} {}S'.format(i, r[_ID], r[_CODIGOU], r[_ZONA]))
         res = dict()
         res[_ID] = r[_ID]
@@ -80,10 +113,10 @@ def validate_coordenadas(**kwargs):
         try:
             validate_dm(r[_CODIGOU], codigous)
             validate_zona(r[_ZONA])
-            res['P56'] = validate_position(r, r[_E_P56], r[_N_P56], flayer, wgs=False)
-            res['W84_1P'] = validate_position(r, r[_E_W84_1P], r[_N_W84_1P], flayer)
-            res['W84_2P'] = validate_position(r, r[_E_W84_2P], r[_N_W84_2P], flayer)
-            res['W84_N'] = validate_position(r, r[_E_W84_N], r[_N_W84_N], flayer)
+            res['P56_DM'], res['P56_AR'] = validate_position(r, r[_E_P56], r[_N_P56], flayer_dm, flayer_ar, wgs=False)
+            res['W84_1P_DM'], res['W84_1P_AR'] = validate_position(r, r[_E_W84_1P], r[_N_W84_1P], flayer_dm, flayer_ar)
+            res['W84_2P_DM'], res['W84_2P_AR'] = validate_position(r, r[_E_W84_2P], r[_N_W84_2P], flayer_dm, flayer_ar)
+            res['W84_N_DM'], res['W84_N_AR'] = validate_position(r, r[_E_W84_N], r[_N_W84_N], flayer_dm, flayer_ar)
         except Exception as e:
             res['error'] = e.message
         finally:
@@ -94,9 +127,11 @@ def validate_coordenadas(**kwargs):
         return MSG_NO_DATA
 
     arcpy.AddMessage(MSG_EXPORT_TO_XLS)
-    df_res = pd.DataFrame(response)
-    out_xls = os.path.join(kwargs['out_dir'], 'response_{}.xls'.format(uuid.uuid4().get_hex()))
-    df_res.to_excel(out_xls, index=False)
+    df_res = pd.DataFrame(response)  # type: DataFrame
 
+    from datetime import datetime
+    identi = datetime.now().strftime("%m%d%Y%H%M%S")
+    out_xls = os.path.join(kwargs['out_dir'], 'response_{}.xls'.format(identi))
+    df_res.to_excel(out_xls, index=False)
     arcpy.AddMessage(MSG_FINISH_PROCESS)
-    return 1
+    return out_xls
