@@ -97,9 +97,7 @@ def validate_coordenadas(**kwargs):
     flayer_dm[18] = arcpy.MakeFeatureLayer_management(kwargs['shp_dm_18'], 'feature_dm_18')
     flayer_dm[19] = arcpy.MakeFeatureLayer_management(kwargs['shp_dm_19'], 'feature_dm_19')
 
-    arcpy.AddMessage('seleccionando layer aleatoriamente')
     flayer_selected = random.choice(flayer_dm.values())
-    arcpy.AddMessage('obteniendo codigous {}'.format(flayer_selected))
 
     nparray = arcpy.da.FeatureClassToNumPyArray(flayer_selected, [_CODIGOU, _ZONA])
     df_dm = pd.DataFrame(nparray)
@@ -107,10 +105,8 @@ def validate_coordenadas(**kwargs):
     # data_dm = map(lambda re: re, arcpy.da.SearchCursor(flayer_dm[flayer_selected], [_CODIGOU, _ZONA]))
     # codigous = [i[0] for i in data_dm]
 
-    arcpy.AddMessage('layer de areas restringidas')
     # FeaturesLayers de areas restringidas
     flayer_ar = dict()
-    arcpy.AddMessage('repollo')
     flayer_ar[17] = arcpy.MakeFeatureLayer_management(kwargs['shp_ar_17'], 'feature_ar_17')
     flayer_ar[18] = arcpy.MakeFeatureLayer_management(kwargs['shp_ar_18'], 'feature_ar_18')
     flayer_ar[19] = arcpy.MakeFeatureLayer_management(kwargs['shp_ar_19'], 'feature_ar_19')
